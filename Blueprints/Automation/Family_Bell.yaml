@@ -32,7 +32,7 @@ blueprint:
       default: [Mon, Tue, Wed, Thu, Fri]
     tts_service:
       name: TTS service (exact service name)
-      description: Example: tts.google_en_com, tts.cloud_say, tts.google_translate_say
+      description: "Example: tts.google_en_com, tts.cloud_say, tts.google_translate_say"
       default: tts.google_en_com
       selector:
         text: {}
