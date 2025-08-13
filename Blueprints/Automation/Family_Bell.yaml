@@ -1,0 +1,156 @@
+blueprint:
+  name: Family Bell (Simple TTS)
+  description: >
+    Re-create Google Home's Family Bell. Schedule a spoken message to one or
+    more speakers on selected weekdays, with optional chime and temporary
+    volume. Make multiple automations from this blueprint (one per bell).
+  domain: automation
+  source_url: https://example.local/blueprints/family_bell  # optional
+  input:
+    bell_name:
+      name: Bell name (for your reference)
+      selector:
+        text: {}
+    media_players:
+      name: Speakers
+      description: One or more media_player entities (Google/Nest, Sonos, etc.)
+      selector:
+        target:
+          entity:
+            domain: media_player
+    bell_time:
+      name: Time
+      selector:
+        time: {}
+    weekdays:
+      name: Days of week
+      selector:
+        select:
+          mode: list
+          multiple: true
+          options:
+            - Mon
+            - Tue
+            - Wed
+            - Thu
+            - Fri
+            - Sat
+            - Sun
+      default:
+        - Mon
+        - Tue
+        - Wed
+        - Thu
+        - Fri
+    tts_service:
+      name: TTS service
+      description: Choose a TTS service you have enabled.
+      selector:
+        select:
+          options:
+            - tts.google_translate_say
+            - tts.cloud_say
+            - tts.speak
+      default: tts.google_translate_say
+    language:
+      name: Language (optional)
+      description: For services that honor 'language' (e.g., google_translate)
+      default: en
+      selector:
+        text: {}
+    volume:
+      name: Temporary volume (optional)
+      description: 0.0–1.0; leave blank to keep current volume
+      default:
+      selector:
+        number:
+          min: 0
+          max: 1
+          step: 0.05
+          mode: slider
+    pre_chime_url:
+      name: Chime URL (optional)
+      description: Public or internal URL to a short MP3/WAV to play before TTS
+      default:
+      selector:
+        text: {}
+    message:
+      name: Message to speak
+      selector:
+        text:
+          multiline: true
+
+mode: queued
+max: 50
+
+trigger:
+  - platform: time
+    at: !input bell_time
+
+variables:
+  weekdays: !input weekdays
+  message: !input message
+  tts_service: !input tts_service
+  lang: !input language
+  tmp_volume: !input volume
+  chime: !input pre_chime_url
+
+condition:
+  - condition: template
+    value_template: >
+      {% set today = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][now().weekday()] %}
+      {{ today in weekdays }}
+
+action:
+  - variables:
+      targets: >-
+        {{ expand(!input media_players) | map(attribute='entity_id') | list }}
+
+  - repeat:
+      for_each: "{{ targets }}"
+      sequence:
+        - variables:
+            speaker: "{{ repeat.item }}"
+            prev_vol: "{{ state_attr(repeat.item, 'volume_level') }}"
+        - if:
+            - condition: template
+              value_template: "{{ tmp_volume is not none and tmp_volume != '' }}"
+          then:
+            - service: media_player.volume_set
+              target:
+                entity_id: "{{ speaker }}"
+              data:
+                volume_level: "{{ float(tmp_volume) }}"
+        - if:
+            - condition: template
+              value_template: "{{ chime | length > 0 }}"
+          then:
+            - service: media_player.play_media
+              target:
+                entity_id: "{{ speaker }}"
+              data:
+                media_content_id: "{{ chime }}"
+                media_content_type: music
+            - delay: "00:00:02"
+
+        # Speak the message
+        - service: "{{ tts_service }}"
+          data:
+            entity_id: "{{ speaker }}"
+            message: "{{ message }}"
+            {% if tts_service == 'tts.google_translate_say' %}
+            language: "{{ lang }}"
+            {% endif %}
+
+        # Give TTS a moment to start before restoring volume
+        - delay: "00:00:02"
+        - if:
+            - condition: template
+              value_template: >
+                {{ tmp_volume is not none and tmp_volume != '' and prev_vol is not none }}
+          then:
+            - service: media_player.volume_set
+              target:
+                entity_id: "{{ speaker }}"
+              data:
+                volume_level: "{{ prev_vol }}"
