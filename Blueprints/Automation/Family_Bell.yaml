@@ -12,11 +12,11 @@ blueprint:
         entity:
           domain: tts
     media_players:
-      name: Speakers
+      name: Speakers (pick one or more)
       selector:
-        target:
-          entity:
-            domain: media_player
+        entity:
+          domain: media_player
+          multiple: true
     bell_time:
       name: Time
       selector:
