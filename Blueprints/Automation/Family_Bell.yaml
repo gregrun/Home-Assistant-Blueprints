@@ -1,7 +1,16 @@
 blueprint:
-  name: Family Bell (Minimal, tts.google_en_com)
+  name: Family Bell (TTS entity + tts.speak)
   domain: automation
+  description: >
+    Speak a message on selected weekdays at a set time using a TTS entity
+    (e.g., tts.google_en_com) and one or more media players.
+
   input:
+    tts_entity:
+      name: TTS voice/entity
+      selector:
+        entity:
+          domain: tts
     media_players:
       name: Speakers
       selector:
@@ -21,7 +30,7 @@ blueprint:
           options: [mon, tue, wed, thu, fri, sat, sun]
       default: [mon, tue, wed, thu, fri]
     message:
-      name: Message
+      name: Message to speak
       selector:
         text:
           multiline: true
@@ -37,7 +46,9 @@ condition:
     weekday: !input weekdays
 
 action:
-  - service: tts.google_en_com
-    target: !input media_players
+  - service: tts.speak
+    target:
+      entity_id: !input tts_entity
     data:
+      media_player_entity_id: !input media_players
       message: !input message
