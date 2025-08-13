@@ -1,19 +1,9 @@
-
 blueprint:
-  name: Family Bell (Any TTS)
-  description: >
-    Speak a message to one or more speakers at a set time on selected weekdays.
-    Works with any TTS service name (e.g., tts.google_en_com).
+  name: Family Bell (Minimal, tts.google_en_com)
   domain: automation
-
   input:
-    bell_name:
-      name: Bell name (reference only)
-      selector:
-        text: {}
     media_players:
       name: Speakers
-      description: One or more media_player entities
       selector:
         target:
           entity:
@@ -28,16 +18,10 @@ blueprint:
         select:
           mode: list
           multiple: true
-          options: [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
-      default: [Mon, Tue, Wed, Thu, Fri]
-    tts_service:
-      name: TTS service (exact service name)
-      description: Enter the exact service like tts.google_en_com
-      default: tts.google_en_com
-      selector:
-        text: {}
+          options: [mon, tue, wed, thu, fri, sat, sun]
+      default: [mon, tue, wed, thu, fri]
     message:
-      name: Message to speak
+      name: Message
       selector:
         text:
           multiline: true
@@ -48,19 +32,12 @@ trigger:
   - platform: time
     at: !input bell_time
 
-variables:
-  weekdays: !input weekdays
-  tts_service: !input tts_service
-  message: !input message
-
 condition:
-  - condition: template
-    value_template: >
-      {% set today = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][now().weekday()] %}
-      {{ today in weekdays }}
+  - condition: time
+    weekday: !input weekdays
 
 action:
-  - service: "{{ tts_service }}"
+  - service: tts.google_en_com
     target: !input media_players
     data:
-      message: "{{ message }}"
+      message: !input message
