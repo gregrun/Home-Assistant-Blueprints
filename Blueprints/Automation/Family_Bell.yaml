@@ -1,9 +1,9 @@
 blueprint:
-  name: Family Bell (TTS entity + tts.speak)
+  name: Family Bell (TTS entity + tts.speak, per-speaker)
   domain: automation
   description: >
     Speak a message on selected weekdays at a set time using a TTS entity
-    (e.g., tts.google_en_com) and one or more media players.
+    (e.g., tts.google_en_com). Loops each selected media_player.
 
   input:
     tts_entity:
@@ -46,9 +46,12 @@ condition:
     weekday: !input weekdays
 
 action:
-  - service: tts.speak
-    target:
-      entity_id: !input tts_entity
-    data:
-      media_player_entity_id: !input media_players
-      message: !input message
+  - repeat:
+      for_each: !input media_players
+      sequence:
+        - service: tts.speak
+          target:
+            entity_id: !input tts_entity
+          data:
+            media_player_entity_id: "{{ repeat.item }}"
+            message: !input message
