@@ -1,9 +1,11 @@
 blueprint:
-  name: Family Bell (Minimal + Reliable)
+  name: Family Bell (Any TTS)
   description: >
-    Simple Google Family Bell replacement: speak a message to one or more speakers
-    at a set time on selected weekdays. One automation per bell.
+    Simple Family Bell replacement: speak a message to one or more speakers
+    at a set time on selected weekdays. Works with ANY TTS service name
+    (e.g., tts.google_en_com, tts.cloud_say, etc.).
   domain: automation
+
   input:
     bell_name:
       name: Bell name (reference only)
@@ -11,7 +13,7 @@ blueprint:
         text: {}
     media_players:
       name: Speakers
-      description: One or more media_player entities (Nest, Hub, Sonos, etc.)
+      description: One or more media_player entities (Nest/Hub/Sonos/etc.)
       selector:
         target:
           entity:
@@ -29,17 +31,9 @@ blueprint:
           options: [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
       default: [Mon, Tue, Wed, Thu, Fri]
     tts_service:
-      name: TTS service
-      description: Pick a TTS you have enabled
-      selector:
-        select:
-          options:
-            - tts.google_translate_say
-            - tts.cloud_say
-      default: tts.google_translate_say
-    language:
-      name: Language (only used by google_translate)
-      default: en
+      name: TTS service (exact service name)
+      description: Example: tts.google_en_com, tts.cloud_say, tts.google_translate_say
+      default: tts.google_en_com
       selector:
         text: {}
     message:
@@ -57,7 +51,6 @@ trigger:
 variables:
   weekdays: !input weekdays
   tts_service: !input tts_service
-  lang: !input language
   message: !input message
 
 condition:
@@ -67,23 +60,7 @@ condition:
       {{ today in weekdays }}
 
 action:
-  # Call the right TTS service without if/then blocks
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ tts_service == 'tts.google_translate_say' }}"
-        sequence:
-          - service: tts.google_translate_say
-            target: !input media_players
-            data:
-              message: "{{ message }}"
-              language: "{{ lang }}"
-      - conditions:
-          - condition: template
-            value_template: "{{ tts_service == 'tts.cloud_say' }}"
-        sequence:
-          - service: tts.cloud_say
-            target: !input media_players
-            data:
-              message: "{{ message }}"
-    default: []
+  - service: "{{ tts_service }}"
+    target: !input media_players
+    data:
+      message: "{{ message }}"
