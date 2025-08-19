@@ -1,10 +1,12 @@
 blueprint:
-  name: Family Bell (TTS entity + chime + volume)
+  name: Family Bell (TTS entity + chime + volume + school days)
   domain: automation
   description: >
     Speak a message on selected weekdays at a set time using a TTS entity
     (e.g., tts.google_en_com). Optional pre-chime and temporary volume boost
-    with automatic restore. Loops over each selected media_player.
+    with automatic restore. Loops each selected media_player.
+    If "School days only" is enabled, runs Mon–Fri and skips when the selected
+    calendar has a current event whose title contains "no school".
 
   input:
     tts_entity:
@@ -68,21 +70,54 @@ blueprint:
           step: 1
           mode: slider
 
+    school_days_only:
+      name: School days only
+      description: "Run only Mon–Fri and skip if calendar has a current 'No School' event"
+      default: false
+      selector:
+        boolean: {}
+
+    school_calendar:
+      name: School calendar
+      description: "Calendar entity to check for 'No School' (e.g., calendar.family)"
+      default: calendar.family
+      selector:
+        entity:
+          domain: calendar
+
 mode: single
 
 trigger:
   - platform: time
     at: !input bell_time
 
+# Keep user-selected weekdays
 condition:
   - condition: time
     weekday: !input weekdays
+
+# Extra gating when School days only is enabled
+  - condition: template
+    value_template: >
+      {%- set school_only = school_days_only -%}
+      {%- if not school_only -%}
+        true
+      {%- else -%}
+        {# Mon–Fri check #}
+        {%- set weekday_ok = now().weekday() in [0,1,2,3,4] -%}
+        {# Look at the CURRENT event on the chosen calendar entity #}
+        {%- set msg = (state_attr(cal_entity, 'message') or '') | lower -%}
+        {%- set no_school = 'no school' in msg -%}
+        {{ weekday_ok and (not no_school) }}
+      {%- endif -%}
 
 variables:
   tmp_volume: !input volume
   chime: !input chime_url
   chime_wait: !input chime_delay
   say_text: !input message
+  cal_entity: !input school_calendar
+  school_only: !input school_days_only
 
 action:
   - repeat:
