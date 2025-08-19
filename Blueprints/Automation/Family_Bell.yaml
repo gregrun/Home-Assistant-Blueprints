@@ -1,12 +1,13 @@
 blueprint:
-  name: Family Bell (TTS entity + chime + volume + school days)
+  name: Family Bell (TTS entity + chime + volume + school days + restore level)
   domain: automation
   description: >
     Speak a message on selected weekdays at a set time using a TTS entity
-    (e.g., tts.google_en_com). Optional pre-chime and temporary volume boost
-    with automatic restore. Loops each selected media_player.
-    If "School days only" is enabled, runs Mon–Fri and skips when the selected
-    calendar has a current event whose title contains "no school".
+    (e.g., tts.google_en_com). Optional pre-chime and temporary volume boost.
+    Loops each selected media_player. If "School days only" is enabled, runs
+    Mon–Fri and skips when the selected calendar has a current event whose title
+    contains "no school" (case-insensitive). After speaking, always restore the
+    speaker to the chosen volume level.
 
   input:
     tts_entity:
@@ -85,21 +86,40 @@ blueprint:
         entity:
           domain: calendar
 
+    restore_volume:
+      name: Restore volume after bell
+      description: "Volume to set after speaking (0.0–1.0). Default 0.4 (40%)."
+      default: 0.4
+      selector:
+        number:
+          min: 0
+          max: 1
+          step: 0.05
+          mode: slider
+
 mode: single
 
 trigger:
   - platform: time
     at: !input bell_time
 
+variables:
+  tmp_volume: !input volume
+  chime: !input chime_url
+  chime_wait: !input chime_delay
+  say_text: !input message
+  cal_entity: !input school_calendar
+  school_only: !input school_days_only
+  restore_vol: !input restore_volume
+
 # Keep user-selected weekdays
 condition:
   - condition: time
     weekday: !input weekdays
 
-# Extra gating when School days only is enabled
+  # Extra gating when School days only is enabled
   - condition: template
     value_template: >
-      {%- set school_only = school_days_only -%}
       {%- if not school_only -%}
         true
       {%- else -%}
@@ -110,14 +130,6 @@ condition:
         {%- set no_school = 'no school' in msg -%}
         {{ weekday_ok and (not no_school) }}
       {%- endif -%}
-
-variables:
-  tmp_volume: !input volume
-  chime: !input chime_url
-  chime_wait: !input chime_delay
-  say_text: !input message
-  cal_entity: !input school_calendar
-  school_only: !input school_days_only
 
 action:
   - repeat:
@@ -164,18 +176,11 @@ action:
             media_player_entity_id: "{{ speaker }}"
             message: "{{ say_text }}"
 
-        # Brief pause, then restore original volume if we changed it and we knew the previous value
+        # Brief pause, then restore to the selected level (default 0.4)
         - delay:
             seconds: 2
-        - choose:
-            - conditions:
-                - condition: template
-                  value_template: >
-                    {{ tmp_volume is not none and (tmp_volume | string) != '' and prev_vol is not none }}
-              sequence:
-                - service: media_player.volume_set
-                  target:
-                    entity_id: "{{ speaker }}"
-                  data:
-                    volume_level: "{{ prev_vol }}"
-          default: []
+        - service: media_player.volume_set
+          target:
+            entity_id: "{{ speaker }}"
+          data:
+            volume_level: "{{ restore_vol | float(0.4) }}"
