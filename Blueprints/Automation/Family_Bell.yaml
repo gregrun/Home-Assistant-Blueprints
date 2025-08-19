@@ -6,8 +6,8 @@ blueprint:
     (e.g., tts.google_en_com). Optional pre-chime and temporary volume boost.
     Loops each selected media_player. If "School days only" is enabled, runs
     Mon–Fri and skips when the selected calendar has a current event whose title
-    contains "no school" (case-insensitive). After speaking, always restore the
-    speaker to the chosen volume level.
+    contains "no school" (case-insensitive). After speaking, restores the
+    speaker to the chosen volume level (waits until playback ends).
 
   input:
     tts_entity:
@@ -103,6 +103,7 @@ trigger:
   - platform: time
     at: !input bell_time
 
+# Variables first so conditions can use them safely
 variables:
   tmp_volume: !input volume
   chime: !input chime_url
@@ -176,9 +177,12 @@ action:
             media_player_entity_id: "{{ speaker }}"
             message: "{{ say_text }}"
 
-        # Brief pause, then restore to the selected level (default 0.4)
+        # Wait until the speaker is no longer playing before restoring volume
+        - wait_template: "{{ states(speaker) != 'playing' }}"
+          timeout: "00:01:00"          # hard-coded 1 minute safety cap
+          continue_on_timeout: true
         - delay:
-            seconds: 2
+            seconds: 1                 # small settle time
         - service: media_player.volume_set
           target:
             entity_id: "{{ speaker }}"
