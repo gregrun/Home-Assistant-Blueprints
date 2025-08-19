@@ -43,6 +43,7 @@ blueprint:
         text:
           multiline: true
 
+    # --- volume controls (grouped together in UI) ---
     volume:
       name: Temporary volume (optional)
       description: "0.0–1.0; leave blank to keep current volume"
@@ -53,6 +54,18 @@ blueprint:
           max: 1
           step: 0.05
           mode: slider
+
+    restore_volume:
+      name: Restore volume after bell
+      description: "Volume to set after speaking (0.0–1.0). Default 0.4 (40%)."
+      default: 0.4
+      selector:
+        number:
+          min: 0
+          max: 1
+          step: 0.05
+          mode: slider
+    # --- end volume controls ---
 
     chime_url:
       name: Pre-chime URL (optional)
@@ -86,24 +99,13 @@ blueprint:
         entity:
           domain: calendar
 
-    restore_volume:
-      name: Restore volume after bell
-      description: "Volume to set after speaking (0.0–1.0). Default 0.4 (40%)."
-      default: 0.4
-      selector:
-        number:
-          min: 0
-          max: 1
-          step: 0.05
-          mode: slider
-
 mode: single
 
 trigger:
   - platform: time
     at: !input bell_time
 
-# Variables first so conditions can use them safely
+# Variables first so conditions & actions can use them safely
 variables:
   tmp_volume: !input volume
   chime: !input chime_url
@@ -138,7 +140,6 @@ action:
       sequence:
         - variables:
             speaker: "{{ repeat.item }}"
-            prev_vol: "{{ state_attr(repeat.item, 'volume_level') }}"
 
         # Optional temporary volume boost
         - choose:
